@@ -1,33 +1,39 @@
-import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import List from "./components/List";
+import { useEffect, useState } from "react";
 
 function App() {
-  const queryClient = useQueryClient();
+  const [users, setUsers] = useState([]);
+  const [lang, setLang] = useState([]);
+  const [userLangData, setUserLangData] = useState([]);
 
   // TODO: Add React Router
 
-  const fetchData = async (url) => {
+  const fetchData = async (url, setStateFn) => {
     try {
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error("Request error");
       }
-      return await res.json();
+      const data = await res.json();
+      setStateFn(data);
     } catch (error) {
       console.log(error);
     }
   };
 
-  const queryLang = useQuery({
-    queryKey: ["qLang"],
-    queryFn: () => fetchData(import.meta.env.VITE_SERVER + "/lab/languages"),
-  });
+  const fetchUsers = () => {
+    fetchData(import.meta.env.VITE_SERVER + "/lab/users", setUsers);
+  };
 
-  const queryUsers = useQuery({
-    queryKey: ["qUsers"],
-    queryFn: () => fetchData(import.meta.env.VITE_SERVER + "/lab/users"),
-  });
+  const fetchLang = () => {
+    fetchData(import.meta.env.VITE_SERVER + "/lab/languages", setLang);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchLang();
+  }, []);
 
   return (
     <div className="container mx-auto">
@@ -36,23 +42,24 @@ function App() {
       </div>
       <div className="mx-auto">
         <div>
-          <Tabs defaultValue="navbar" className="w-[500px] mx-auto my-3">
+          <Tabs defaultValue="navbar" className="w-[640px] mx-auto my-3">
             <TabsList className="mx-auto mt-2 mb-3">
               <TabsTrigger value="langs">All Languages</TabsTrigger>
               <TabsTrigger value="users">All Users</TabsTrigger>
               <TabsTrigger value="uSearch">User Search</TabsTrigger>
             </TabsList>
             <TabsContent value="langs">
-              {queryLang.isPending && <p>Loading...</p>}
-              {queryLang.isError && <p>{queryLang.error.message}</p>}
-              {queryLang.isSuccess && (
-                <List dataType="lang" data={queryLang.data} />
-              )}
+              <List dataType="lang" data={lang} refetchFn={fetchLang} />
             </TabsContent>
             <TabsContent value="users">
-              {queryUsers.isSuccess && (
-                <List dataType="users" data={queryUsers.data} />
-              )}
+              <List
+                dataType="users"
+                data={users}
+                langData={lang}
+                userLangData={userLangData}
+                setUserLangData={setUserLangData}
+                refetchFn={fetchUsers}
+              />
             </TabsContent>
             <TabsContent value="uSearch">
               Have a search bar, button and table to show language for user.

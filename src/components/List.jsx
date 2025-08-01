@@ -8,160 +8,265 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import PopoverComp from "./PopoverComp";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 const List = (props) => {
-  const queryClient = useQueryClient();
+  const [searchInput, setSearchInput] = useState("");
 
-  const addLang = useMutation({
-    mutationFn: async (lang) => {
+  const changeData = async (url, args, refetchFn) => {
+    try {
+      const res = await fetch(import.meta.env.VITE_SERVER + url, args);
+      if (!res.ok) {
+        throw new Error("Request error");
+      }
+      const data = await res.json();
+      refetchFn();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const addLang = (langName) => {
+    const url = "/lab/languages/";
+    const args = {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        language: langName,
+      }),
+    };
+    changeData(url, args, props.refetchFn);
+  };
+
+  const deleteLang = (langName) => {
+    const url = "/lab/languages/" + langName;
+    const args = {
+      method: "DELETE",
+    };
+    console.log(props.refetchFn);
+    changeData(url, args, props.refetchFn);
+  };
+
+  const addUser = ([name, age, country]) => {
+    const url = "/lab/users/";
+    const args = {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: name,
+        age: parseInt(age),
+        country: country,
+      }),
+    };
+    changeData(url, args, props.refetchFn);
+  };
+
+  const editUser = ([id, name, age, country]) => {
+    const url = "/lab/users/";
+    const args = {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: parseInt(id),
+        name: name,
+        age: parseInt(age),
+        country: country,
+      }),
+    };
+    changeData(url, args, props.refetchFn);
+  };
+
+  const handleEditUser = async ([id, name, age, country, languages]) => {
+    // check for the lang differences
+    const prevUserLang = props.userLangData.filter((user) => user.id == id);
+    console.log(languages, prevUserLang);
+    if (languages.length !== 0) {
+      languages.forEach((lang) => {
+        if (
+          prevUserLang[0].language.find((item) => item === lang) === undefined
+        ) {
+          addUserLang(id, lang);
+        } else {
+          deleteUserLang(id, lang);
+        }
+      });
+    }
+    // edit user
+    editUser([id, name, age, country]);
+  };
+
+  const addUserLang = (id, lang) => {
+    const url = "/lab/users/languages";
+    const args = {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: parseInt(id),
+        language: lang,
+      }),
+    };
+    changeData(url, args, () => {
+      fetchUserLangData();
+      props.refetchFn();
+    });
+  };
+
+  const deleteUserLang = (id, lang) => {
+    const url = "/lab/users/languages";
+    const args = {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: parseInt(id),
+        language: lang,
+      }),
+    };
+    changeData(url, args, () => {
+      fetchUserLangData();
+      props.refetchFn();
+    });
+  };
+
+  const deleteUser = (id) => {
+    const url = "/lab/users/";
+    const args = {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: parseInt(id),
+      }),
+    };
+    console.log(id, url, args, props.refetchFn);
+    changeData(url, args, props.refetchFn);
+  };
+
+  const returnUserLangString = (id) => {
+    const result = props.userLangData.find((user) => user.id == id);
+    if (result === undefined || result.length === 0) {
+      return "";
+    } else {
+      return result.language.join(", ");
+    }
+  };
+
+  const handleSearch = () => {
+    const searchResults = props.data.filter((user) => {
+      return user.name.toLowerCase().includes(searchInput.toLowerCase());
+    });
+    console.log(searchResults);
+    if (searchResults.length !== 0) {
+      return searchResults;
+    }
+    return null;
+  };
+
+  const fetchUserLangData = () => {
+    const fetchUserLang = async (id) => {
       try {
         const res = await fetch(
-          import.meta.env.VITE_SERVER + "/lab/languages/",
+          import.meta.env.VITE_SERVER + "/lab/users/languages",
           {
-            method: "PUT",
+            method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              language: lang,
+              user_id: parseInt(id),
             }),
           }
         );
         if (!res.ok) {
-          throw new Error("Request error - language not deleted");
+          throw new Error("Request error");
         }
-        return await res.json();
-      } catch (error) {
-        console.log(error);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["qLang"] });
-    },
-  });
-
-  const deleteLang = useMutation({
-    mutationFn: async (lang) => {
-      try {
-        const res = await fetch(
-          import.meta.env.VITE_SERVER + "/lab/languages/" + lang,
-          {
-            method: "DELETE",
+        const data = await res.json();
+        props.setUserLangData((prevState) => {
+          let foundUser = false;
+          const newState = [...prevState];
+          prevState.map((item) => {
+            const newItem = structuredClone(item);
+            if (item.id == id) {
+              newItem.language = data;
+              foundUser = true;
+            }
+            return newItem;
+          });
+          if (!foundUser) {
+            const newItem = { id, language: data };
+            newState.push(newItem);
           }
-        );
-        if (!res.ok) {
-          throw new Error("Request error - language not deleted");
-        }
-        return await res.json();
-      } catch (error) {
-        console.log(error);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["qLang"] });
-    },
-  });
-
-  const addUser = useMutation({
-    mutationFn: async ([name, age, country]) => {
-      try {
-        const res = await fetch(import.meta.env.VITE_SERVER + "/lab/users/", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: name,
-            age: parseInt(age),
-            country: country,
-          }),
+          return newState;
         });
-        if (!res.ok) {
-          throw new Error("Request error - user not added");
-        }
-        return await res.json();
+        return data;
       } catch (error) {
         console.log(error);
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["qUsers"] });
-    },
-  });
+    };
 
-  const editUser = useMutation({
-    mutationFn: async ([id, name, age, country]) => {
-      try {
-        const res = await fetch(import.meta.env.VITE_SERVER + "/lab/users/", {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: parseInt(id),
-            name: name,
-            age: parseInt(age),
-            country: country,
-          }),
-        });
-        if (!res.ok) {
-          throw new Error("Request error - user information not changed");
-        }
-        return await res.json();
-      } catch (error) {
-        console.log(error);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["qUsers"] });
-    },
-  });
+    if (props.dataType === "users") {
+      props.data.forEach((user) => {
+        fetchUserLang(user.id);
+      });
+    }
+  };
 
-  const deleteUsers = useMutation({
-    mutationFn: async (id) => {
-      try {
-        const res = await fetch(import.meta.env.VITE_SERVER + "/lab/users/", {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: parseInt(id),
-          }),
-        });
-        if (!res.ok) {
-          throw new Error("Request error - user not deleted");
-        }
-        return await res.json();
-      } catch (error) {
-        console.log(error);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["qUsers"] });
-    },
-  });
+  useEffect(() => {
+    fetchUserLangData();
+  }, []);
 
   return (
     <>
-      <Table>
+      {props.dataType === "users" && (
+        <div className="mx-auto my-2">
+          <Label className="text-lg my-1" htmlFor="searchUserInput">
+            Search for an user
+          </Label>
+          <Input
+            id="searchUserInput"
+            className="col-span-2 h-8 my-1"
+            value={searchInput}
+            onChange={(event) => {
+              setSearchInput(event.target.value);
+            }}
+          />
+          <Button className="my-2 rounded" variant="outline">
+            Search
+          </Button>
+        </div>
+      )}
+      <Table className="my-3">
         {/* <TableCaption>A list of all the languages</TableCaption> */}
-        <TableHeader>
+        <TableHeader className="text-[18px]">
           <TableRow>
+            {/* Display Header Row for Table of Languages */}
             {props.dataType === "lang" && (
               <>
-                <TableHead className="w-[100px]">Language</TableHead>
+                <TableHead className="w-[200px]">Language</TableHead>
                 <TableHead className="text-right">Date of Creation</TableHead>
               </>
             )}
+            {/* Display Header Row for Table of Users */}
             {props.dataType === "users" && (
               <>
                 <TableHead className="w-[100px]">Name</TableHead>
                 <TableHead className="w-[60px]">Age</TableHead>
-                <TableHead className="text-right">Country</TableHead>
+                <TableHead className="w-[100px]">Country</TableHead>
+                <TableHead className="text-right">Languages</TableHead>
               </>
             )}
           </TableRow>
@@ -176,20 +281,22 @@ const List = (props) => {
                 <TableCell className="text-right">
                   <Button
                     variant="destructive"
-                    onClick={() => deleteLang.mutate(datum.language)}
+                    onClick={() => deleteLang(datum.language)}
                   >
                     Delete
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
-          {/* Display Table of Users */}
+          {/* Display Table of Users WITHOUT Search */}
           {props.dataType === "users" &&
+            searchInput === "" &&
             props.data.map((datum) => (
               <TableRow key={datum.id} id={datum.id}>
                 <TableCell className="font-medium">{datum.name}</TableCell>
                 <TableCell>{datum.age}</TableCell>
                 <TableCell>{datum.country}</TableCell>
+                <TableCell>{returnUserLangString(datum.id)}</TableCell>
                 <TableCell>
                   {/* Edit User Button & Popover */}
                   {
@@ -197,10 +304,12 @@ const List = (props) => {
                       data={props.data}
                       id={datum.id}
                       dataType={props.dataType}
+                      langData={props.langData}
+                      userLang={returnUserLangString(datum.id)}
                       editUser={true}
-                      onSubmit={editUser.mutate}
+                      onSubmit={handleEditUser}
                       openButtonTitle="Edit"
-                      title="Edit Users"
+                      title="Edit User"
                     />
                   }
                 </TableCell>
@@ -208,7 +317,44 @@ const List = (props) => {
                   {/* Delete User Button & Popover */}
                   <Button
                     variant="destructive"
-                    onClick={() => deleteUsers.mutate(datum.id)}
+                    onClick={() => deleteUser(datum.id)}
+                  >
+                    Delete
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          {/* Display Table of Users WITH Search */}
+          {props.dataType === "users" &&
+            searchInput !== "" &&
+            handleSearch() !== null &&
+            handleSearch().map((datum) => (
+              <TableRow key={datum.id} id={datum.id}>
+                <TableCell className="font-medium">{datum.name}</TableCell>
+                <TableCell>{datum.age}</TableCell>
+                <TableCell>{datum.country}</TableCell>
+                <TableCell>{returnUserLangString(datum.id)}</TableCell>
+                <TableCell>
+                  {/* Edit User Button & Popover */}
+                  {
+                    <PopoverComp
+                      data={props.data}
+                      id={datum.id}
+                      dataType={props.dataType}
+                      langData={props.langData}
+                      userLang={returnUserLangString(datum.id)}
+                      editUser={true}
+                      onSubmit={handleEditUser}
+                      openButtonTitle="Edit"
+                      title="Edit User"
+                    />
+                  }
+                </TableCell>
+                <TableCell>
+                  {/* Delete User Button & Popover */}
+                  <Button
+                    variant="destructive"
+                    onClick={() => deleteUser(datum.id)}
                   >
                     Delete
                   </Button>
@@ -223,7 +369,7 @@ const List = (props) => {
           data={props.data}
           dataType={props.dataType}
           editUser={false}
-          onSubmit={addLang.mutate}
+          onSubmit={addLang}
           openButtonTitle="Add New Language"
           title="New Language"
         ></PopoverComp>
@@ -233,8 +379,9 @@ const List = (props) => {
         <PopoverComp
           data={props.data}
           dataType={props.dataType}
+          langData={props.langData}
           editUser={false}
-          onSubmit={addUser.mutate}
+          onSubmit={addUser}
           openButtonTitle="Add New User"
           title="New User"
         ></PopoverComp>
