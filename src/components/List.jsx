@@ -244,9 +244,9 @@ const List = (props) => {
               setSearchInput(event.target.value);
             }}
           />
-          <Button className="my-2 rounded" variant="outline">
+          {/* <Button className="my-2 rounded" variant="outline">
             Search
-          </Button>
+          </Button> */}
         </div>
       )}
       <Table className="my-3">

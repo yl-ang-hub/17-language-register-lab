@@ -44,9 +44,8 @@ function App() {
         <div>
           <Tabs defaultValue="navbar" className="w-[640px] mx-auto my-3">
             <TabsList className="mx-auto mt-2 mb-3">
-              <TabsTrigger value="langs">All Languages</TabsTrigger>
-              <TabsTrigger value="users">All Users</TabsTrigger>
-              <TabsTrigger value="uSearch">User Search</TabsTrigger>
+              <TabsTrigger value="langs">Languages</TabsTrigger>
+              <TabsTrigger value="users">Users</TabsTrigger>
             </TabsList>
             <TabsContent value="langs">
               <List dataType="lang" data={lang} refetchFn={fetchLang} />
@@ -60,9 +59,6 @@ function App() {
                 setUserLangData={setUserLangData}
                 refetchFn={fetchUsers}
               />
-            </TabsContent>
-            <TabsContent value="uSearch">
-              Have a search bar, button and table to show language for user.
             </TabsContent>
           </Tabs>
         </div>

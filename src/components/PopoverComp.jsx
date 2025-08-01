@@ -186,6 +186,12 @@ const PopoverComp = (props) => {
                             </div>
                           );
                         })}
+                        <Label>
+                          <small className="text-red-700">
+                            Please refresh the page after changing the languages
+                            to see the updates.
+                          </small>
+                        </Label>
                       </div>
                     )}
                   </>
